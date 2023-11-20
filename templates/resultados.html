@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AQICity</title>
+    <style>
+        .hidden {
+            display: none;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 1em;
+            text-align: center;
+        }
+
+        footer {
+            background-color: #333;
+            color: #fff;
+            padding: 1em;
+            text-align: center;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        #hero {
+            background-image: url('https://img.freepik.com/vector-premium/fondo-papel-tapiz-lineas-onduladas-modernas-abstractas-azules_120409-569.jpg');
+            background-size: cover;
+            background-position: center;
+            color: #fff;
+            text-align: center;
+            padding: 4em 0;
+        }
+
+        h1 {
+            margin-bottom: 0.5em;
+        }
+
+        form {
+            margin: 2em 0;
+            text-align: center;
+        }
+
+        form label, form select, form input {
+            margin: 1em;
+        }
+
+        #calculateButton, #generateRandomDistancesButton {
+            background-color: #333;
+            color: #fff;
+            padding: 0.5em 1em;
+            border: none;
+            cursor: pointer;
+        }
+
+        #resultados-container {
+            margin: 2em 0;
+            padding: 2em;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        ul li {
+            margin: 0.5em 0;
+        }
+
+    </style>
+</head>
+<body>
+    <header>
+
+        <footer id="footer">
+            <h1>AQICity</h1>
+        </footer>
+        
+    </header>
+
+    <div id="hero">
+        <h1>Encuentra la mejor calidad del aire para ti y tu familia.</h1>
+    </div>
+    <form id="resultsForm" action="{{ url_for('mostrar_resultados') }}" method="post">
+        <label for="source_node">Nodo de origen:</label>
+        <input type="text" id="source_node" name="source_node" required>
+
+        <label for="desired_country">País deseado:</label>
+        <select id="desired_country" name="desired_country" required>
+            {% for country in countries %}
+                <option value="{{ country }}" {% if country == desired_country %}selected{% endif %}>{{ country }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="excluded_country">País no deseado:</label>
+        <select id="excluded_country" name="excluded_country" required>
+            {% for country in countries %}
+                <option value="{{ country }}" {% if country == excluded_country %}selected{% endif %}>{{ country }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="button" id="calculateButton">Calcular Resultados</button>
+
+
+        <button type="button" id="generateRandomDistancesButton">Generar Distancias Aleatorias</button>
+
+        
+    </form>
+
+    <div id="resultados-container" class="hidden">
+        <h1>Resultados para <span id="resultados_source_node"></span></h1>
+
+        <!-- Dentro de #resultados-container -->
+        <h2>Promedio de calidad del aire para <span id="resultados_source_node"></span></h2>
+        <p id="promedio_calidad_aire_fuente"></p>
+
+        <h2>Resultados filtrados para el país deseado: <span id="resultados_desired_country"></span></h2>
+        <ul id="resultados_filtrados_deseado_list"></ul>
+
+        <h2>País-ciudad con la menor distancia basada en la comparación de promedios</h2>
+        <p id="min_distance_result"></p>
+
+        <h2>Distancias desde <span id="resultados_source_node"></span></h2>
+        <ul id="distancias_list"></ul>
+
+        <h2>Resultados ordenados de menor a mayor</h2>
+        <ul id="sorted_distances_list"></ul>
+
+        
+        
+
+        <h2>Resultados filtrados para el país no deseado (<span id="resultados_excluded_country"></span>) ordenados de mayor a menor</h2>
+        <ul id="resultados_filtrados_no_deseado_list"></ul>
+    </div>
+
+    <script>
+
+
+
+
+
+
+        // Definir valores predeterminados para el formulario
+        var desired_country = "{{ desired_country }}";
+        var excluded_country = "{{ excluded_country }}";
+
+        // Función que se llama al cargar la página para seleccionar automáticamente los países
+        window.onload = function () {
+            document.getElementById('desired_country').value = desired_country;
+            document.getElementById('excluded_country').value = excluded_country;
+            
+        };
+
+        document.getElementById("calculateButton").addEventListener("click", function() {
+            // Obtener valores del formulario
+            var sourceNode = document.getElementById('source_node').value;
+            var desiredCountry = document.getElementById('desired_country').value;
+            var excludedCountry = document.getElementById('excluded_country').value;
+           
+
+            // Enviar solicitud al servidor 
+            fetch("http://localhost:5000/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    "source_node": sourceNode,
+                    "desired_country": desiredCountry,
+                    "excluded_country": excludedCountry
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Mostrar los resultados en la sección correspondiente
+                document.getElementById('resultados_source_node').textContent = data.source_node;
+                
+                // Mostrar promedio de calidad del aire para el nodo fuente
+                document.getElementById('promedio_calidad_aire_fuente').textContent = data.promedio_calidad_aire_fuente;
+                
+
+                var promedioCalidadAireFuente = data.promedio_calidad_aire_fuente;
+        document.getElementById('promedio_calidad_aire_fuente').textContent = promedioCalidadAireFuente;
+
+        // Cambiar el color del footer según el valor de promedioCalidadAireFuente
+        var footer = document.getElementById('footer');
+
+        if (promedioCalidadAireFuente < 25) {
+            footer.style.backgroundColor = 'green';
+        } else if (promedioCalidadAireFuente >= 26 && promedioCalidadAireFuente <= 70) {
+            footer.style.backgroundColor = 'yellow';
+        } else {
+            footer.style.backgroundColor = 'red';
+        }
+                
+
+
+                // Mostrar distancias desde el nodo de origen
+                var distanciasList = document.getElementById('distancias_list');
+                distanciasList.innerHTML = "";
+                for (var targetNode in data.distancias_desde_source) {
+                    var listItem = document.createElement('li');
+                    listItem.textContent = targetNode + ": " + data.distancias_desde_source[targetNode];
+                    distanciasList.appendChild(listItem);
+                }
+
+                // Mostrar resultados ordenados de menor a mayor
+                var sortedDistancesList = document.getElementById('sorted_distances_list');
+                sortedDistancesList.innerHTML = "";
+                for (var i = 0; i < data.sorted_distances.length; i++) {
+                    var listItem = document.createElement('li');
+                    listItem.textContent = data.sorted_distances[i][0] + ": " + data.sorted_distances[i][1];
+                    sortedDistancesList.appendChild(listItem);
+                }
+
+                // Mostrar país-ciudad con la menor distancia basada en la comparación de promedios
+                document.getElementById('min_distance_result').textContent = data.min_distance_result[0] + ": " + data.min_distance_result[1];
+
+                // Mostrar resultados filtrados para el país deseado
+                var resultadosFiltradosDeseadoList = document.getElementById('resultados_filtrados_deseado_list');
+                resultadosFiltradosDeseadoList.innerHTML = "";
+                for (var i = 0; i < data.resultados_filtrados_deseado.length; i++) {
+                    var listItem = document.createElement('li');
+                    listItem.textContent = data.resultados_filtrados_deseado[i][0] + ": " + data.resultados_filtrados_deseado[i][1];
+                    resultadosFiltradosDeseadoList.appendChild(listItem);
+                }
+
+                // Mostrar resultados filtrados para el país no deseado
+                var resultadosFiltradosNoDeseadoList = document.getElementById('resultados_filtrados_no_deseado_list');
+                resultadosFiltradosNoDeseadoList.innerHTML = "";
+                for (var i = 0; i < data.resultados_filtrados_no_deseado.length; i++) {
+                    var listItem = document.createElement('li');
+                    listItem.textContent = data.resultados_filtrados_no_deseado[i][0] + ": " + data.resultados_filtrados_no_deseado[i][1];
+                    resultadosFiltradosNoDeseadoList.appendChild(listItem);
+                }
+
+                // Mostrar la sección de resultados
+                document.getElementById('resultados-container').classList.remove('hidden');
+            })
+            .catch(error => {
+                console.error("Error al calcular los resultados: " + error);
+            });
+        });
+
+        document.getElementById("generateRandomDistancesButton").addEventListener("click", function() {
+
+            
+    // Obtener valores del formulario
+    var sourceNode = document.getElementById('source_node').value;
+    var desiredCountry = document.getElementById('desired_country').value;
+    var excludedCountry = document.getElementById('excluded_country').value;
+
+    // Enviar solicitud al servidor (usando fetch) para obtener distancias aleatorias
+    fetch("http://localhost:5000/generateRandomDistances", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            "source_node": sourceNode,
+            "desired_country": desiredCountry,
+            "excluded_country": excludedCountry
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Mostrar las distancias aleatorias en la sección correspondiente
+        var distanciasList = document.getElementById('distancias_list');
+        distanciasList.innerHTML = "";
+        for (var targetNode in data.random_distances) {
+            var listItem = document.createElement('li');
+            listItem.textContent = targetNode + ": " + data.random_distances[targetNode];
+            distanciasList.appendChild(listItem);
+        }
+
+        // Recalcular resultados ordenados de menor a mayor con las distancias aleatorias
+        var sortedDistancesList = document.getElementById('sorted_distances_list');
+        sortedDistancesList.innerHTML = "";
+        // Concatenar las distancias aleatorias a las distancias existentes
+        var combinedDistances = { ...data.distancias_desde_source, ...data.random_distances };
+        // Ordenar las distancias combinadas de menor a mayor
+        var sortedDistances = Object.entries(combinedDistances).sort((a, b) => a[1] - b[1]);
+        // Mostrar resultados ordenados
+        for (var i = 0; i < sortedDistances.length; i++) {
+            var listItem = document.createElement('li');
+            listItem.textContent = sortedDistances[i][0] + ": " + sortedDistances[i][1];
+            sortedDistancesList.appendChild(listItem);
+        }
+
+         // Mostrar país-ciudad con la menor distancia basada en la comparación de promedios (aleatorios)
+    document.getElementById('min_distance_result').textContent = data.min_distance_result_random[0] + ": " + data.min_distance_result_random[1];
+
+// Mostrar resultados filtrados para el país deseado (aleatorios)
+var resultadosFiltradosDeseadoListRandom = document.getElementById('resultados_filtrados_deseado_list');
+resultadosFiltradosDeseadoListRandom.innerHTML = "";
+for (var i = 0; i < data.resultados_filtrados_deseado_random.length; i++) {
+    var listItem = document.createElement('li');
+    listItem.textContent = data.resultados_filtrados_deseado_random[i][0] + ": " + data.resultados_filtrados_deseado_random[i][1];
+    resultadosFiltradosDeseadoListRandom.appendChild(listItem);
+}
+
+// Mostrar resultados filtrados para el país no deseado (aleatorios)
+var resultadosFiltradosNoDeseadoListRandom = document.getElementById('resultados_filtrados_no_deseado_list');
+resultadosFiltradosNoDeseadoListRandom.innerHTML = "";
+for (var i = 0; i < data.resultados_filtrados_no_deseado_random.length; i++) {
+    var listItem = document.createElement('li');
+    listItem.textContent = data.resultados_filtrados_no_deseado_random[i][0] + ": " + data.resultados_filtrados_no_deseado_random[i][1];
+    resultadosFiltradosNoDeseadoListRandom.appendChild(listItem);
+}
+
+// Mostrar la sección de resultados
+document.getElementById('resultados').classList.remove('hidden');   
+    
+    })
+    .catch(error => {
+        console.error("Error al generar distancias aleatorias: " + error);
+    });
+});
+    </script>
+</body>
+</html>
